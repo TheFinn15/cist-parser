@@ -1,0 +1,27 @@
+{
+  "name": "cist-parser",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "start": "node ."
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "selenium-webdriver": "^4.0.0-beta.2",
+    "tslib": "^2.2.0",
+    "webdriver-manager": "^12.1.8"
+  },
+  "devDependencies": {
+    "@types/node": "^14.14.37",
+    "@types/selenium-webdriver": "^4.0.12",
+    "eslint": "^7.23.0",
+    "fake-useragent": "^1.0.1",
+    "prettier": "^2.2.1",
+    "random-useragent": "^0.5.0",
+    "typescript": "^4.2.4"
+  }
+}
