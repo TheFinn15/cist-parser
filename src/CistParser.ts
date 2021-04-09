@@ -2,11 +2,12 @@ import {By, WebDriver, WebElement} from "selenium-webdriver";
 import {TimeTableType} from "./types/TimeTableType";
 import {ExtraInfoType} from "./types/ExtraInfoType";
 import {GroupDataType} from "./types/GroupDataType";
+import fs from "fs";
 
 
 export class CistParser {
   private driver: WebDriver;
-  private readonly url: string;
+  private url: string;
 
   private result: TimeTableType[] = [];
   private curDate: string = "01.02.2021";
@@ -15,16 +16,18 @@ export class CistParser {
   private extraInfo: ExtraInfoType[];
   private allRows: WebElement[];
 
-  private chosenGroupID: string[];
+  private chosenGroupID: string[] = [];
   private session: string;
   private rawGroupsData: WebElement[];
-  private clearGroupsData: GroupDataType[]
+  private clearGroupsData: GroupDataType[] = [];
 
-  constructor(driver: WebDriver, url: string) {
+  constructor(driver: WebDriver) {
     this.driver = driver;
-    this.url = url;
   }
 
+  /**
+   * Parse all groups with courses
+   */
   async parseGroups() {
     await this.driver.get("https://cist.nure.ua/");
     await this.driver.executeScript("doSubmit('T_TIME_TABLE')");
@@ -58,10 +61,9 @@ export class CistParser {
 
   /**
    * Take a name of group and return full link to time table
-   * @return full link to time table
    * @param name group in time table
    */
-  choseGroup(name: string) : string {
+  async choseGroup(name: string) {
     if (this.clearGroupsData.length > 0) {
       let chosenGroup = [];
       for (const item of this.clearGroupsData) {
@@ -71,9 +73,18 @@ export class CistParser {
       }
       if (chosenGroup.length > 0) {
         this.chosenGroupID[0] = chosenGroup[0].id;
-        this.chosenGroupID[1] = chosenGroup[1].name;
+        this.chosenGroupID[1] = chosenGroup[0].name;
 
-        return `https://cist.nure.ua/ias/app/tt/f?p=778:201:${this.session}:::201:P201_FIRST_DATE,P201_LAST_DATE,P201_GROUP,P201_POTOK:${CistParser.getDates()[0]},${CistParser.getDates()[1]},${this.chosenGroupID[0]},0:`;
+        this.url = `https://cist.nure.ua/ias/app/tt/f?p=778:201:${this.session}:::201:P201_FIRST_DATE,P201_LAST_DATE,P201_GROUP,P201_POTOK:${CistParser.getDates()[0]},${CistParser.getDates()[1]},${this.chosenGroupID[0]},0:`;
+
+        const pairs = await this.parse();
+
+        try {
+          fs.writeFileSync(`timeTable-${chosenGroup[0].name}.json5`, JSON.stringify(pairs));
+          console.log("SAVED");
+        } catch (e) {
+          console.log("NO SAVED");
+        }
       } else {
         throw "Group not found !";
       }
@@ -82,7 +93,7 @@ export class CistParser {
     }
   }
 
-  async parse() : Promise<TimeTableType[]> {
+  private async parse() : Promise<TimeTableType[]> {
     await this.driver.get(this.url);
 
     this.allRows = (await this.driver.findElements(By.css("table.MainTT tr"))).slice(1);
