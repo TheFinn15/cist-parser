@@ -16,6 +16,7 @@ export class CistParser {
   private extraInfo: ExtraInfoType[];
   private allRows: WebElement[];
 
+  private chosenFaculty: { name: string; id: string };
   private chosenGroupID: string[] = [];
   private session: string;
   private rawGroupsData: WebElement[];
@@ -29,10 +30,7 @@ export class CistParser {
    * Parse all groups with courses
    */
   async parseGroups() {
-    await this.driver.get("https://cist.nure.ua/");
-    await this.driver.executeScript("doSubmit('T_TIME_TABLE')");
-
-    this.session = (await this.driver.getCurrentUrl()).match(/[0-9]{16}/g)?.[0];
+    this.session = (await this.driver.getCurrentUrl()).match(/\d{16}/g)?.[0];
     this.rawGroupsData = await this.driver.findElements(By.css("div#GROUPS_AJAX table.t13FormRegion"));
 
     for (let item of this.rawGroupsData) {
@@ -48,11 +46,11 @@ export class CistParser {
 
       for (let group of curGroups) {
         const rawGroup: string = await group.getAttribute("onclick");
-        const dataGroup: string[] = rawGroup.match(/('[А-Яа-яёЁЇїІіЄєҐґ]+-[0-9]+-[0-9]+',[0-9]+)/gm)![0].split(",");
+        const dataGroup: string[] = rawGroup.match(/(\'.*\d)/gm)?.[0].split(",");
         this.clearGroupsData.slice(-1)[0].groups.push(
           {
             id: dataGroup[1],
-            name: dataGroup[0].match(/[А-Яа-яёЁЇїІіЄєҐґ]+-[0-9]+-[0-9]+/gm)![0]
+            name: dataGroup[0].match(/(\'.*\d)/gm)?.[0]
           }
         );
       }
@@ -91,6 +89,27 @@ export class CistParser {
     } else {
       throw "Data of group is empty";
     }
+  }
+
+  async choseFaculty(name: string) {
+    await this.driver.get("https://cist.nure.ua/");
+    await this.driver.executeScript("doSubmit('T_TIME_TABLE')");
+
+    let res = [];
+
+    const faculties = await this.driver.findElements(By.css("div#GROUPS_AJAX table.htmldbTabbedNavigationList tr td[valign='bottom'] a"));
+    for (const faculty of faculties) {
+      res.push(
+        {
+          id: (await faculty.getAttribute("onclick")).match(/[0-9]+/g)[0],
+          name: await faculty.getText()
+        }
+      );
+    }
+
+    this.chosenFaculty = res.filter(i => i.name === name)[0];
+
+    await this.driver.executeScript(`IAS_Change_Groups(${this.chosenFaculty.id})`);
   }
 
   private async parse() : Promise<TimeTableType[]> {
