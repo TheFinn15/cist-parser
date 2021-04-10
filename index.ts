@@ -22,9 +22,9 @@ import {CistParser} from "./src/CistParser";
 
   const cistParser = new CistParser(driver);
 
-  await cistParser.choseFaculty("КІУ");
+  await cistParser.choseFaculty("ІРТЗІ");
   await cistParser.parseGroups();
-  await cistParser.choseGroup("ПЗПІ-18-7");
+  await cistParser.choseGroup("ЕСТМ-19-1");
 
-  // await driver.close();
+  await driver.close();
 })();

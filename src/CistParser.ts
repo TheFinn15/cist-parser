@@ -50,7 +50,7 @@ export class CistParser {
         this.clearGroupsData.slice(-1)[0].groups.push(
           {
             id: dataGroup[1],
-            name: dataGroup[0].match(/(\'.*\d)/gm)?.[0]
+            name: dataGroup[0].match(/(\'.*\d)/gm)?.[0].replace(/['"]/gm, "")
           }
         );
       }
@@ -84,7 +84,7 @@ export class CistParser {
           console.log("NO SAVED");
         }
       } else {
-        throw "Group not found !";
+        throw "Group in time table is not found !";
       }
     } else {
       throw "Data of group is empty";
@@ -101,7 +101,7 @@ export class CistParser {
     for (const faculty of faculties) {
       res.push(
         {
-          id: (await faculty.getAttribute("onclick")).match(/[0-9]+/g)[0],
+          id: (await faculty.getAttribute("onclick")).match(/\d+/g)[0],
           name: await faculty.getText()
         }
       );
@@ -142,20 +142,21 @@ export class CistParser {
 
     for (const row of this.allRows) {
       for (const i of (await row.findElements(By.css("td"))).slice(1)) {
-        const regex = /[0-9]{2}\.[0-9]{2}\.[0-9]{2}|[0-9]{2}:[0-9]{2}/g;
+        const regex = /\d{2}\.\d{2}\.\d{4}|\d{2}:\d{2}/g;
         if ((await i.getText()).match(regex) !== null) {
           const timeOrDate = (await i.getText());
 
-          if (timeOrDate.match(/[0-9]{2}\.[0-9]{2}\.[0-9]{2}/g) !== null) {
-            this.curDate = timeOrDate.match(/[0-9]{2}\.[0-9]{2}\.[0-9]{2}/g)[0];
+          if (timeOrDate.match(/\d{2}\.\d{2}\.\d{4}/g) !== null) {
+            this.curDate = timeOrDate.match(/\d{2}\.\d{2}\.\d{4}/g)[0];
           }
-          if (timeOrDate.match(/[0-9]{2}:[0-9]{2}/g) !== null) {
-            this.curTime = timeOrDate.match(/[0-9]{2}:[0-9]{2}/g).join(" - ");
+          if (timeOrDate.match(/\d{2}:\d{2}/g) !== null) {
+            this.curTime = timeOrDate.match(/\d{2}:\d{2}/g).join(" - ");
           }
         }
         else {
           if ((await i.getText()) !== " ") {
-            const [title, type, cabinet, numCabinet] = (await i.getText()).split(" ");
+            let [title, type, cabinet, numCabinet] = (await i.getText()).split(" ");
+            numCabinet = numCabinet ?? "";
             result.push(
               {
                 name: title,
@@ -196,7 +197,7 @@ export class CistParser {
         countsLessons: {
           lecture: {
             info: counts.filter(i => i.match(/ Лк /g))[0]?.split(" - ")[1],
-            counts: parseInt(counts.filter(i => i.match(/ Лк /g))[0]?.match(/[0-9]+/g)[0])
+            counts: this.getCountTypesLearn(counts," Лк ")
           },
           laba: {
             info: counts.filter(i => i.match(/ Лб /g))[0]?.split(" - ")[1],
@@ -225,7 +226,7 @@ export class CistParser {
   }
 
   private getCountTypesLearn(arr: string[], type: string) {
-    return parseInt(arr.filter(i => new RegExp(type, "g").exec(i))[0]?.match(/[0-9]+/g)[0]);
+    return parseInt(arr.filter(i => new RegExp(type, "g").exec(i))[0]?.match(/\d+/g)[0]);
   }
 
   private static getDates(): string[] {
