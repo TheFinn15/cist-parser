@@ -28,5 +28,5 @@ import {CistParser} from "./src/CistParser";
   await cistParser.parseGroups();
   await cistParser.choseGroup("ПЗПІ-18-7");
 
-  await driver.close();
+  // await driver.close();
 })();

@@ -13,8 +13,8 @@ export class CistParser {
   private readonly nameResult: string;
 
   private result: TimeTableType[] = [];
-  private curDate: string = "01.02.2021";
-  private curTime: string = "07:45 - 09:20";
+  private curDate: string[] = [];
+  private curTime: string[] = [];
 
   private extraInfo: ExtraInfoType[];
   private allRows: WebElement[];
@@ -84,7 +84,7 @@ export class CistParser {
         this.chosenGroupID[0] = chosenGroup[0].id;
         this.chosenGroupID[1] = chosenGroup[0].name;
 
-        this.url = `https://cist.nure.ua/ias/app/tt/f?p=778:201:${this.session}:::201:P201_FIRST_DATE,P201_LAST_DATE,P201_GROUP,P201_POTOK:${CistParser.getDates()[0]},${CistParser.getDates()[1]},${this.chosenGroupID[0]},0:`;
+        this.url = `https://cist.nure.ua/ias/app/tt/f?p=778:201:${this.session ?? "0000000000000000"}:::201:P201_FIRST_DATE,P201_LAST_DATE,P201_GROUP,P201_POTOK:${CistParser.getDates()[0]},${CistParser.getDates()[1]},${this.chosenGroupID[0]},0:`;
 
         const pairs = await this.parse();
 
@@ -183,42 +183,53 @@ export class CistParser {
   private async getPairs() : Promise<TimeTableType[]> {
     const result: TimeTableType[] = [];
 
+    let countRowTime = 0;
+
     for (const row of this.allRows) {
+      let countRowDate = 0;
+      if (countRowDate > countRowTime) countRowTime++;
+      else if (countRowTime >= 6) countRowTime = 0;
+
       for (const i of (await row.findElements(By.css("td"))).slice(1)) {
         const regex = /\d{2}\.\d{2}\.\d{4}|\d{2}:\d{2}/g;
         if ((await i.getText()).match(regex) !== null) {
           const timeOrDate = (await i.getText());
 
           if (timeOrDate.match(/\d{2}\.\d{2}\.\d{4}/g) !== null) {
-            this.curDate = timeOrDate.match(/\d{2}\.\d{2}\.\d{4}/g)[0];
+            this.curDate.push(
+              timeOrDate.match(/\d{2}\.\d{2}\.\d{4}/g)[0]
+            );
           }
           if (timeOrDate.match(/\d{2}:\d{2}/g) !== null) {
-            this.curTime = timeOrDate.match(/\d{2}:\d{2}/g).join(" - ");
+            this.curTime.push(
+              timeOrDate.match(/\d{2}:\d{2}/g).join(" - ")
+            );
           }
-        }
-        else if ((await i.getText()) !== " ") {
-          let [title, type, cabinet, numCabinet] = (await i.getText()).split(" ");
-          numCabinet = numCabinet ?? "";
-          result.push(
-            {
-              name: title,
-              time: this.curTime,
-              date: this.curDate,
-              type: type,
-              cabinet: cabinet + " " + numCabinet
-            }
-          )
-        }
-        else {
-          result.push(
-            {
-              name: "",
-              time: this.curTime,
-              date: this.curDate,
-              type: "",
-              cabinet: ""
-            }
-          )
+        } else {
+          if (await i.getText() !== " ") {
+            let [title, type, cabinet, numCabinet] = (await i.getText()).split(" ");
+            numCabinet = numCabinet ?? "";
+            result.push(
+              {
+                name: title,
+                time: this.curTime[countRowTime],
+                date: this.curDate[countRowDate],
+                type: type,
+                cabinet: cabinet + " " + numCabinet
+              }
+            )
+          } else {
+            result.push(
+              {
+                name: "",
+                time: this.curTime[countRowTime],
+                date: this.curDate[countRowDate],
+                type: "",
+                cabinet: ""
+              }
+            )
+          }
+          countRowDate++;
         }
       }
     }
