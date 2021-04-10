@@ -3,11 +3,14 @@ import {TimeTableType} from "./types/TimeTableType";
 import {ExtraInfoType} from "./types/ExtraInfoType";
 import {GroupDataType} from "./types/GroupDataType";
 import fs from "fs";
+import {createObjectCsvWriter} from "csv-writer";
 
 
 export class CistParser {
   private driver: WebDriver;
   private url: string;
+  private readonly typeResult: string;
+  private readonly nameResult: string;
 
   private result: TimeTableType[] = [];
   private curDate: string = "01.02.2021";
@@ -22,8 +25,16 @@ export class CistParser {
   private rawGroupsData: WebElement[];
   private clearGroupsData: GroupDataType[] = [];
 
-  constructor(driver: WebDriver) {
+  /**
+   *
+   * @param driver - WebDriver
+   * @param typeResult - Type of result file with time table
+   * @param nameResult - Name of file with time table
+   */
+  constructor(driver: WebDriver, typeResult: string = "json", nameResult: string = "timeTable") {
     this.driver = driver;
+    this.typeResult = typeResult;
+    this.nameResult = nameResult;
   }
 
   /**
@@ -78,10 +89,42 @@ export class CistParser {
         const pairs = await this.parse();
 
         try {
-          fs.writeFileSync(`timeTable-${chosenGroup[0].name}.json5`, JSON.stringify(pairs));
-          console.log("SAVED");
+          if (this.typeResult === "json") {
+            fs.writeFileSync(`${this.nameResult}-${chosenGroup[0].name}.${this.typeResult}`, JSON.stringify(pairs));
+
+            console.log("JSON TIMETABLE SAVED");
+          } else if (this.typeResult === "csv") {
+            const newCsvFile = createObjectCsvWriter({
+              path: `./${this.nameResult}-${chosenGroup[0].name}.${this.typeResult}`,
+              header: [
+                {id: "name", title: "Название"},
+                {id: "time", title: "Время начала"},
+                {id: "date", title: "Дата начала"},
+                {id: "type", title: "Тип занятия"},
+                {id: "cabinet", title: "Кабинет"},
+                {id: "fullNameLesson", title: "Доп. Инфо: Полное название"},
+                {id: "lectureCounts", title: "Доп. Инфо: Кол-во Лекций"},
+                {id: "lectureInfo", title: "Доп. Инфо: О Лекциях"},
+                {id: "labaCounts", title: "Доп. Инфо: Кол-во Лаборатнорных"},
+                {id: "labaInfo", title: "Доп. Инфо: О Лаборатнорных"},
+                {id: "practiceCounts", title: "Доп. Инфо: Кол-во Практических"},
+                {id: "practiceInfo", title: "Доп. Инфо: О Практических"},
+                {id: "consultCounts", title: "Доп. Инфо: Кол-во Консультациях"},
+                {id: "consultInfo", title: "Доп. Инфо: О Консультациях"},
+                {id: "examCounts", title: "Доп. Инфо: Кол-во Экзаменов"},
+                {id: "examInfo", title: "Доп. Инфо: О Экзаменах"},
+                {id: "passCounts", title: "Доп. Инфо: Кол-во Зачетов"},
+                {id: "passInfo", title: "Доп. Инфо: О Зачетах"}
+              ]
+            });
+
+            newCsvFile.writeRecords(CistParser.getDataForCsv(pairs))
+              .then(() => console.log("CSV TIMETABLE SAVED"))
+              .catch(() => console.error("CSV TIMETABLE NOT SAVED"));
+          }
         } catch (e) {
-          console.log("NO SAVED");
+          console.log(`ERROR SAVING TIMETABLE WITH FILE ${this.nameResult}.${this.typeResult}`);
+          console.error(e);
         }
       } else {
         throw "Group in time table is not found !";
@@ -153,30 +196,29 @@ export class CistParser {
             this.curTime = timeOrDate.match(/\d{2}:\d{2}/g).join(" - ");
           }
         }
+        else if ((await i.getText()) !== " ") {
+          let [title, type, cabinet, numCabinet] = (await i.getText()).split(" ");
+          numCabinet = numCabinet ?? "";
+          result.push(
+            {
+              name: title,
+              time: this.curTime,
+              date: this.curDate,
+              type: type,
+              cabinet: cabinet + " " + numCabinet
+            }
+          )
+        }
         else {
-          if ((await i.getText()) !== " ") {
-            let [title, type, cabinet, numCabinet] = (await i.getText()).split(" ");
-            numCabinet = numCabinet ?? "";
-            result.push(
-              {
-                name: title,
-                time: this.curTime,
-                date: this.curDate,
-                type: type,
-                cabinet: cabinet + " " + numCabinet
-              }
-            )
-          } else {
-            result.push(
-              {
-                name: "",
-                time: this.curTime,
-                date: this.curDate,
-                type: "",
-                cabinet: ""
-              }
-            )
-          }
+          result.push(
+            {
+              name: "",
+              time: this.curTime,
+              date: this.curDate,
+              type: "",
+              cabinet: ""
+            }
+          )
         }
       }
     }
@@ -227,6 +269,36 @@ export class CistParser {
 
   private getCountTypesLearn(arr: string[], type: string) {
     return parseInt(arr.filter(i => new RegExp(type, "g").exec(i))[0]?.match(/\d+/g)[0]);
+  }
+
+  private static getDataForCsv(rawData: TimeTableType[]) : any[] {
+    let result: any[] = [];
+    for (const item of rawData) {
+      result.push(
+        {
+          name: item.name,
+          time: item.time,
+          date: item.date,
+          type: item.type,
+          cabinet: item.cabinet,
+          fullNameLesson: item.extraInfo?.fullName,
+          lectureCounts: item.extraInfo?.countsLessons.lecture.counts,
+          lectureInfo: item.extraInfo?.countsLessons.lecture.info,
+          labaCounts: item.extraInfo?.countsLessons.laba.counts,
+          labaInfo: item.extraInfo?.countsLessons.laba.info,
+          practiceCounts: item.extraInfo?.countsLessons.practice.counts,
+          practiceInfo: item.extraInfo?.countsLessons.practice.info,
+          consultCounts: item.extraInfo?.countsLessons.consult.counts,
+          consultInfo: item.extraInfo?.countsLessons.consult.info,
+          examCounts: item.extraInfo?.countsLessons.exam.counts,
+          examInfo: item.extraInfo?.countsLessons.exam.info,
+          passCounts: item.extraInfo?.countsLessons.pass.counts,
+          passInfo: item.extraInfo?.countsLessons.pass.info,
+        }
+      );
+    }
+
+    return result;
   }
 
   private static getDates(): string[] {

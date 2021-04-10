@@ -5,9 +5,11 @@ import {CistParser} from "./src/CistParser";
 
 (async () => {
   const opts = new Options();
-  opts.addArguments(
-    "--headless"
-  );
+  // opts.addArguments(
+  //   "--headless",
+  //   "--disable-gpu",
+  //   "--no-sandbox"
+  // );
   opts.detachDriver(true);
 
   const caps = new Capabilities();
@@ -20,11 +22,11 @@ import {CistParser} from "./src/CistParser";
     .forBrowser("chrome")
     .build();
 
-  const cistParser = new CistParser(driver);
+  const cistParser = new CistParser(driver, "csv");
 
-  await cistParser.choseFaculty("ІРТЗІ");
+  await cistParser.choseFaculty("КН");
   await cistParser.parseGroups();
-  await cistParser.choseGroup("ЕСТМ-19-1");
+  await cistParser.choseGroup("ПЗПІ-18-7");
 
   await driver.close();
 })();

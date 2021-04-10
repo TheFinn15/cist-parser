@@ -11,6 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "csv-writer": "^1.6.0",
     "selenium-webdriver": "^4.0.0-beta.2",
     "tslib": "^2.2.0",
     "webdriver-manager": "^12.1.8"
